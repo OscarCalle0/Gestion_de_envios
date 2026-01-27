@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+
+  db:
+    image: postgres:15-alpine
+    container_name: coordinadora_db
+    restart: always
+    environment:
+      POSTGRES_USER: coordinadora_user
+      POSTGRES_PASSWORD: coordinadora_pass
+      POSTGRES_DB: coordinadora_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coordinadora_user -d coordinadora_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - coordinadora_network
+
+ 
+  redis:
+    image: redis:7-alpine
+    container_name: coordinadora_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - coordinadora_network
+
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  coordinadora_network:
+    driver: bridge
