@@ -5,7 +5,8 @@ import { EnvioEntity, UnidadEnvio, EstadoEnvio } from '@domain/entities/EnvioEnt
 
 @injectable()
 export class PostgresEnvioRepository implements EnvioRepository, TarifaRepository {
-    private db = DEPENDENCY_CONTAINER.get<any>(TYPES.PostgresDatabase);
+    // CORRECCIÓN S2933: Añadido readonly
+    private readonly db = DEPENDENCY_CONTAINER.get<any>(TYPES.PostgresDatabase);
 
     async save(envio: EnvioEntity): Promise<void> {
         await this.db.tx(async (t: any) => {
@@ -81,10 +82,12 @@ export class PostgresEnvioRepository implements EnvioRepository, TarifaRepositor
             tipoProducto: envioData.tipoProducto,
             origen: envioData.origen,
             destino: envioData.destino,
-            valorDeclarado: parseFloat(envioData.valorDeclarado),
+            // CORRECCIÓN S7773: Number.parseFloat
+            valorDeclarado: Number.parseFloat(envioData.valorDeclarado),
             metodoPago: envioData.metodoPago,
             unidades: unidades as UnidadEnvio[],
-            valorTotalCotizacion: parseFloat(envioData.valorTotalCotizacion),
+            // CORRECCIÓN S7773: Number.parseFloat
+            valorTotalCotizacion: Number.parseFloat(envioData.valorTotalCotizacion),
             remitente: {
                 nombre: envioData.remitente_nombre,
                 direccion: envioData.remitente_direccion,
@@ -103,6 +106,7 @@ export class PostgresEnvioRepository implements EnvioRepository, TarifaRepositor
         });
     }
 
+    // ... (El resto de métodos quedan igual pero se benefician del readonly de 'db')
     async updateEstado(
         numeroGuia: string,
         nuevoEstado: EstadoEnvio,

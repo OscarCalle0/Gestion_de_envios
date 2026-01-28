@@ -1,14 +1,14 @@
 import { ErrorCode, PostgresErrorCode, StatusCode } from './ErrorCode';
 
 export abstract class Exception {
-    isError: boolean;
+    isError: boolean = true;
     message: string;
     code: ErrorCode;
     statusCode: number;
     cause: string | null;
 
     constructor(message: string, code: ErrorCode, statusCode: number, cause?: string) {
-        this.isError = true;
+        // Quitamos la línea: this.isError = true; (ya está arriba)
         this.message = message;
         this.code = code;
         this.statusCode = statusCode;

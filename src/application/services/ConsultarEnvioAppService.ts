@@ -1,5 +1,5 @@
-import { injectable } from 'inversify';
-import { TYPES, DEPENDENCY_CONTAINER } from '@configuration';
+import { injectable, inject } from 'inversify';
+import { TYPES } from '../../configuration/Types';
 import { EnvioRepository } from '@domain/repository/EnvioRepository';
 import { EnvioEntity } from '@domain/entities/EnvioEntity';
 import { CacheService } from '@infrastructure/cache/RedisCache';
@@ -15,8 +15,10 @@ interface EnvioCache {
 
 @injectable()
 export class ConsultarEnvioAppService {
-    private envioRepository = DEPENDENCY_CONTAINER.get<EnvioRepository>(TYPES.EnvioRepository);
-    private cacheService = DEPENDENCY_CONTAINER.get<CacheService>(TYPES.CacheService);
+    constructor(
+        @inject(TYPES.EnvioRepository) private readonly envioRepository: EnvioRepository,
+        @inject(TYPES.CacheService) private readonly cacheService: CacheService
+    ) {}
 
     private getCacheKey(numeroGuia: string): string {
         return `envio:${numeroGuia}`;
@@ -26,12 +28,13 @@ export class ConsultarEnvioAppService {
         const cacheKey = this.getCacheKey(numeroGuia);
         const cached = await this.cacheService.get<EnvioCache>(cacheKey);
 
-        let envio: EnvioEntity | null;
-        let historial: unknown[];
+        let envio: EnvioEntity | null = null;
+        let historial: unknown[] = [];
         let fromCache = false;
 
         if (cached) {
-            envio = new EnvioEntity(cached.envio as EnvioEntity);
+            // CORRECCIÓN S4325: Se elimina el 'as EnvioEntity' innecesario
+            envio = new EnvioEntity(cached.envio);
             historial = cached.historial;
             fromCache = true;
         } else {
@@ -45,36 +48,16 @@ export class ConsultarEnvioAppService {
             }
 
             historial = await this.envioRepository.getHistorial(envio.id);
-
             await this.cacheService.set(cacheKey, { envio, historial }, CACHE_TTL_ENVIO);
-        }
-
-        if (!envio) {
-            throw new BadMessageException(
-                'Guía no encontrada',
-                `No se encontró ningún envío con la guía: ${numeroGuia}`,
-            );
         }
 
         return Result.ok({
             numeroGuia: envio.numeroGuia,
             estado: envio.estado,
             tipoProducto: envio.tipoProducto,
-            ruta: {
-                origen: envio.origen,
-                destino: envio.destino,
-            },
-            remitente: {
-                nombre: envio.remitente.nombre,
-                direccion: envio.remitente.direccion,
-                telefono: envio.remitente.telefono,
-            },
-            destinatario: {
-                nombre: envio.destinatario.nombre,
-                direccion: envio.destinatario.direccion,
-                telefono: envio.destinatario.telefono,
-                infoAdicional: envio.destinatario.infoAdicional,
-            },
+            ruta: { origen: envio.origen, destino: envio.destino },
+            remitente: { ...envio.remitente },
+            destinatario: { ...envio.destinatario },
             valorTotal: envio.valorTotalCotizacion,
             moneda: envio.moneda,
             metodoPago: envio.metodoPago,
