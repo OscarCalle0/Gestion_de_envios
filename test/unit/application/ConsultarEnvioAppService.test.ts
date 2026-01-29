@@ -16,7 +16,6 @@ describe('ConsultarEnvioAppService', () => {
             set: jest.fn()
         };
 
-        // Esta es la forma más profesional de testear
         service = new ConsultarEnvioAppService(mockRepo, mockCache);
     });
 
@@ -32,7 +31,6 @@ describe('ConsultarEnvioAppService', () => {
             await service.run('GUIA_TEST');
             throw new Error('Debería haber lanzado una excepción');
         } catch (error: any) {
-            // Ajustamos el texto para que coincida con lo que recibimos
             expect(error.message).toContain('No se encontró ningún envío con la guía: GUIA_TEST');
             expect(mockRepo.findByGuia).toHaveBeenCalledWith('GUIA_TEST');
         }

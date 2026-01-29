@@ -9,24 +9,18 @@ describe('EnvioRouter Integration', () => {
     const FULL_PREFIX = '/coordinadora/gestion-envios';
 
     beforeAll(async () => {
-        // Inicializamos el contenedor y la aplicación de Fastify
         createDependencyContainer();
         await application.ready();
     });
 
     afterAll(async () => {
-        // Cerramos la aplicación para liberar los handles (puertos, conexiones)
         await application.close();
     });
-
-    // ==========================================
-    // 1. CAMINOS EXITOSOS (Happy Path)
-    // ==========================================
 
     it('GET /health - Debería retornar 200 OK', async () => {
         const response = await application.inject({
             method: 'GET',
-            url: `${FULL_PREFIX}/health`
+            url: `/health`
         });
         expect(response.statusCode).toBe(200);
     });
@@ -72,15 +66,11 @@ describe('EnvioRouter Integration', () => {
         expect(response.statusCode).toBe(201);
     });
 
-    // ==========================================
-    // 2. CAMINOS DE ERROR (Para subir Cobertura)
-    // ==========================================
-
     it('POST /cotizar - Error de validación (Cubre líneas 32-35)', async () => {
         const response = await application.inject({
             method: 'POST',
             url: `${FULL_PREFIX}/cotizar`,
-            payload: { origen: "MEDELLIN" } // Payload incompleto
+            payload: { origen: "MEDELLIN" } 
         });
         expect(response.statusCode).toBe(400);
         const body = JSON.parse(response.payload);
@@ -99,7 +89,7 @@ describe('EnvioRouter Integration', () => {
     it('GET /envios/:guia - Guía con formato inválido (Cubre líneas 62-65)', async () => {
         const response = await application.inject({
             method: 'GET',
-            url: `${FULL_PREFIX}/envios/ABC` // Guía muy corta o formato erróneo
+            url: `${FULL_PREFIX}/envios/ABC` 
         });
         expect(response.statusCode).toBe(400);
     });
@@ -107,7 +97,7 @@ describe('EnvioRouter Integration', () => {
     it('PATCH /envios/:guia/estado - Parámetro Guía inválido (Cubre líneas 77-80)', async () => {
         const response = await application.inject({
             method: 'PATCH',
-            url: `${FULL_PREFIX}/envios/123/estado`, // Guía inválida
+            url: `${FULL_PREFIX}/envios/123/estado`, 
             payload: { estado: "En tránsito" }
         });
         expect(response.statusCode).toBe(400);
@@ -116,8 +106,8 @@ describe('EnvioRouter Integration', () => {
     it('PATCH /envios/:guia/estado - Body de estado inválido (Cubre líneas 87-90)', async () => {
         const response = await application.inject({
             method: 'PATCH',
-            url: `${FULL_PREFIX}/envios/23012600001/estado`, // Guía válida
-            payload: { estado: "ESTADO_QUE_NO_EXISTE" } // Estado no permitido
+            url: `${FULL_PREFIX}/envios/23012600001/estado`, 
+            payload: { estado: "ESTADO_QUE_NO_EXISTE" } 
         });
         expect(response.statusCode).toBe(400);
     });

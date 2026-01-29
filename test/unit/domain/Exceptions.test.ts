@@ -24,7 +24,6 @@ describe('Domain Exceptions Coverage', () => {
     });
 
     it('debería cubrir FirestoreException y sus ramas del switch', () => {
-        // Probamos un caso específico y el default para cubrir el switch
         const error1 = new FirestoreException(1, 'Error uno');
         const errorDefault = new FirestoreException(999, 'Error desconocido');
         
@@ -33,11 +32,10 @@ describe('Domain Exceptions Coverage', () => {
     });
 
     it('debería cubrir PostgresError y sus ramas principales', () => {
-        // Cubrimos un par de casos de PostgresErrorCode para subir el % de ramas
         const uniqueErr = new PostgresError(PostgresErrorCode.UNIQUE_VIOLATION, 'Duplicate');
         const defaultErr = new PostgresError('99999', 'Unknown');
 
-        expect(uniqueErr.statusCode).toBe(409); // StatusCode.CONFLICT
+        expect(uniqueErr.statusCode).toBe(409);
         expect(defaultErr.cause).toBe('Error desconocido');
     });
 });

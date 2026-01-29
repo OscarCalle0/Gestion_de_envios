@@ -17,8 +17,8 @@ interface LogEntry {
 }
 
 class Logger {
-    private serviceName: string;
-    private isProduction: boolean;
+    private readonly serviceName: string;
+    private readonly isProduction: boolean;
 
     constructor() {
         this.serviceName = ENV.SERVICE_NAME || 'gestion-envios';

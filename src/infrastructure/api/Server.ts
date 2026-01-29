@@ -8,12 +8,25 @@ import { ENV } from '@util';
 export const start = async () => {
     try {
         createDependencyContainer();
-        const server = await application.listen({ port: ENV.PORT, host: '0.0.0.0' });
+
+        application.get('/', async (_request, reply) => {
+            return reply.redirect('/docs');
+        });
+
+        const server = await application.listen({
+            port: ENV.PORT,
+            host: '0.0.0.0'
+        });
+
         application.swagger();
+
         console.log(`Application running on ${server}`);
+        console.log(`Documentation available at ${server}/docs`);
+
     } catch (error) {
-        console.error(error);
+        console.error('Error starting server:', error);
         await application.close();
+        process.exit(1);
     }
 };
 

@@ -3,27 +3,28 @@ import 'reflect-metadata';
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { application } from '@infrastructure/api/Application';
-import { DEPENDENCY_CONTAINER, TYPES } from '@configuration';
+import { TYPES } from '../../../src/configuration/Types';
+import { DEPENDENCY_CONTAINER } from '../../../src/configuration/DependecyContainer';
+import { application } from '../../../src/infrastructure/api/Application';
+import { EnvioEntity } from '../../../src/domain/entities/EnvioEntity';
 import { 
     envioValidoFixture, 
     cotizacionValidaFixture,
     actualizarEstadoEntregadoFixture 
 } from '../../fixtures/envioFixtures';
 
-import { EnvioEntity } from '@domain/entities/EnvioEntity';
-import { CotizarEnvioAppService } from '@application/services/CotizarEnvioAppService';
-import { RegistrarEnvioAppService } from '@application/services/RegistrarEnvioAppService';
-import { ConsultarEnvioAppService } from '@application/services/ConsultarEnvioAppService';
-import { ActualizarEstadoAppService } from '@application/services/ActualizarEstadoAppService';
-import { ConsultarTarifasAppService } from '@application/services/ConsultarTarifasAppService';
+import { CotizarEnvioAppService } from '../../../src/application/services/CotizarEnvioAppService';
+import { RegistrarEnvioAppService } from '../../../src/application/services/RegistrarEnvioAppService';
+import { ConsultarEnvioAppService } from '../../../src/application/services/ConsultarEnvioAppService';
+import { ActualizarEstadoAppService } from '../../../src/application/services/ActualizarEstadoAppService';
+import { ConsultarTarifasAppService } from '../../../src/application/services/ConsultarTarifasAppService';
 
 describe('Comprehensive Integration Tests - Gestión de Envíos', () => {
     let mockRepo: any;
     let mockCache: any;
     let mockDb: any;
 
-    const safeBind = (type: any, value: any, isConstant = true) => {
+    const safeBind = (type: symbol, value: any, isConstant = true) => {
         if (DEPENDENCY_CONTAINER.isBound(type)) {
             DEPENDENCY_CONTAINER.unbind(type);
         }
@@ -35,7 +36,6 @@ describe('Comprehensive Integration Tests - Gestión de Envíos', () => {
     };
 
     beforeAll(async () => {
-        // Mocks de infraestructura básica
         mockDb = { 
             connect: jest.fn(), 
             query: jest.fn().mockResolvedValue({ rows: [] }),
@@ -46,7 +46,7 @@ describe('Comprehensive Integration Tests - Gestión de Envíos', () => {
         mockCache = { 
             get: jest.fn(), set: jest.fn(), del: jest.fn(),
             delPattern: jest.fn(), isConnected: jest.fn().mockReturnValue(true),
-            connect: jest.fn() 
+            connect: jest.fn(), disconnect: jest.fn()
         };
 
         mockRepo = { 
@@ -55,13 +55,11 @@ describe('Comprehensive Integration Tests - Gestión de Envíos', () => {
             getNextGuiaNumber: jest.fn(), getAllTarifas: jest.fn()
         };
 
-        // Registro de Mocks en el contenedor Inversify
         safeBind(TYPES.PostgresDatabase, mockDb);
         safeBind(TYPES.CacheService, mockCache);
         safeBind(TYPES.TarifaRepository, mockRepo);
         safeBind(TYPES.EnvioRepository, mockRepo);
 
-        // Registro de Application Services (Clases Reales)
         safeBind(TYPES.CotizarEnvioAppService, CotizarEnvioAppService, false);
         safeBind(TYPES.RegistrarEnvioAppService, RegistrarEnvioAppService, false);
         safeBind(TYPES.ConsultarEnvioAppService, ConsultarEnvioAppService, false);
@@ -78,7 +76,6 @@ describe('Comprehensive Integration Tests - Gestión de Envíos', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockCache.get.mockResolvedValue(null);
-        // Simulación de tarifa base para los cálculos de flete
         mockRepo.getTarifa.mockResolvedValue({ precioBase: 5000, factorVolumetrico: 2500 });
         mockRepo.getNextGuiaNumber.mockResolvedValue('27012600001');
     });
@@ -92,6 +89,7 @@ describe('Comprehensive Integration Tests - Gestión de Envíos', () => {
         valorDeclarado: 100000,
         metodoPago: 'FLETE_PAGO' as const,
         valorTotalCotizacion: 15000,
+        estado: 'En espera' as const,
         remitente: { nombre: 'Juan', direccion: 'Calle 1', telefono: '123' },
         destinatario: { nombre: 'Maria', direccion: 'Calle 2', telefono: '456' },
         unidades: [{ 
@@ -121,8 +119,8 @@ describe('Comprehensive Integration Tests - Gestión de Envíos', () => {
             expect(mockRepo.save).toHaveBeenCalled();
         });
 
-        it('debería validar transiciones de estado incorrectas', async () => {
-            const mockEnvio = new EnvioEntity({ ...commonEnvioData, estado: 'En espera' });
+        it('debería validar transiciones de estado incorrectas (400)', async () => {
+            const mockEnvio = new EnvioEntity(commonEnvioData);
             mockRepo.findByGuia.mockResolvedValue(mockEnvio);
 
             const response = await application.inject({
@@ -151,7 +149,6 @@ describe('Comprehensive Integration Tests - Gestión de Envíos', () => {
             const body = JSON.parse(response.body);
             const unidad = body.data.unidades[0];
             
-            // Verificación de redondeo (Math.ceil)
             expect(unidad.alto).toBe(11);
             expect(unidad.ancho).toBe(21);
             expect(unidad.largo).toBe(31);

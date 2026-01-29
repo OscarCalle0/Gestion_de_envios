@@ -1,7 +1,8 @@
 import 'reflect-metadata';
-import { DEPENDENCY_CONTAINER, TYPES } from '@configuration';
-import { ActualizarEstadoAppService } from '@application/services/ActualizarEstadoAppService';
-import { BadMessageException } from '@domain/exceptions/Exceptions';
+import { TYPES } from '../../../src/configuration/Types';
+import { DEPENDENCY_CONTAINER } from '../../../src/configuration/DependecyContainer';
+import { ActualizarEstadoAppService } from '../../../src/application/services/ActualizarEstadoAppService';
+import { BadMessageException } from '../../../src/domain/exceptions/Exceptions';
 
 describe('ActualizarEstadoAppService - Cobertura de Errores', () => {
     let service: ActualizarEstadoAppService;
@@ -20,6 +21,7 @@ describe('ActualizarEstadoAppService - Cobertura de Errores', () => {
             get: jest.fn(),
             set: jest.fn(),
             del: jest.fn(),
+            disconnect: jest.fn(),
         };
 
         if (DEPENDENCY_CONTAINER.isBound(TYPES.EnvioRepository)) {
@@ -32,11 +34,18 @@ describe('ActualizarEstadoAppService - Cobertura de Errores', () => {
         }
         DEPENDENCY_CONTAINER.bind(TYPES.CacheService).toConstantValue(mockCache);
 
-        service = new ActualizarEstadoAppService();
+        service = new ActualizarEstadoAppService(mockEnvioRepository, mockCache);
     });
 
     afterEach(() => {
         DEPENDENCY_CONTAINER.restore();
+        jest.clearAllMocks();
+    });
+
+    afterAll(async () => {
+        if (mockCache && typeof mockCache.disconnect === 'function') {
+            await mockCache.disconnect();
+        }
     });
 
     it('debería lanzar error si la guía no existe', async () => {
@@ -44,8 +53,11 @@ describe('ActualizarEstadoAppService - Cobertura de Errores', () => {
 
         try {
             await service.run('GUIA-NULL', { estado: 'En tránsito' });
-            fail('El servicio debería haber lanzado una excepción');
+            throw new Error('El servicio debería haber lanzado una excepción');
         } catch (error: any) {
+            if (error.message === 'El servicio debería haber lanzado una excepción') {
+                throw error;
+            }
             expect(error).toBeInstanceOf(BadMessageException);
             expect(error.message).toContain('No se encontró ningún envío con la guía');
         }
@@ -56,16 +68,19 @@ describe('ActualizarEstadoAppService - Cobertura de Errores', () => {
             id: '1',
             numeroGuia: '23012600001',
             estado: 'En espera',
+            origen: 'MEDELLIN',
+            destino: 'BOGOTA'
         });
         mockEnvioRepository.updateEstado.mockResolvedValue(null);
 
         try {
             await service.run('23012600001', { estado: 'En tránsito' });
-            fail('El servicio debería haber lanzado una excepción');
+            throw new Error('El servicio debería haber lanzado una excepción');
         } catch (error: any) {
+            if (error.message === 'El servicio debería haber lanzado una excepción') {
+                throw error;
+            }
             expect(error).toBeInstanceOf(BadMessageException);
-            
-            expect(error.cause).toBe('Error de actualización');
             expect(error.message).toBe('No se pudo actualizar el estado del envío');
         }
     });

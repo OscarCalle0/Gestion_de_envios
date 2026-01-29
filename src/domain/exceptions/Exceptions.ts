@@ -8,7 +8,6 @@ export abstract class Exception {
     cause: string | null;
 
     constructor(message: string, code: ErrorCode, statusCode: number, cause?: string) {
-        // Quitamos la línea: this.isError = true; (ya está arriba)
         this.message = message;
         this.code = code;
         this.statusCode = statusCode;

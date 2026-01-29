@@ -1,5 +1,5 @@
-import { injectable } from 'inversify';
-import { TYPES, DEPENDENCY_CONTAINER } from '@configuration';
+import { injectable, inject } from 'inversify';
+import { TYPES } from '../../configuration/Types';
 import { EnvioRepository } from '@domain/repository/EnvioRepository';
 import { EnvioEntity, EstadoEnvio, ESTADOS_VALIDOS } from '@domain/entities/EnvioEntity';
 import { CacheService } from '@infrastructure/cache/RedisCache';
@@ -14,9 +14,10 @@ interface ActualizarEstadoInput {
 
 @injectable()
 export class ActualizarEstadoAppService {
-    private envioRepository = DEPENDENCY_CONTAINER.get<EnvioRepository>(TYPES.EnvioRepository);
-    private cacheService = DEPENDENCY_CONTAINER.get<CacheService>(TYPES.CacheService);
-
+    constructor(
+        @inject(TYPES.EnvioRepository) private readonly envioRepository: EnvioRepository,
+        @inject(TYPES.CacheService) private readonly cacheService: CacheService
+    ) { }
     private getCacheKey(numeroGuia: string): string {
         return `envio:${numeroGuia}`;
     }

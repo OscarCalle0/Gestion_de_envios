@@ -1,42 +1,42 @@
 import 'reflect-metadata';
-import { application } from '@infrastructure/api/Application';
-import { DEPENDENCY_CONTAINER, TYPES } from '@configuration';
+import { TYPES } from '../../../src/configuration/Types';
+import { DEPENDENCY_CONTAINER } from '../../../src/configuration/DependecyContainer';
+import { application } from '../../../src/infrastructure/api/Application';
 
-import { CotizarEnvioAppService } from '@application/services/CotizarEnvioAppService';
-import { RegistrarEnvioAppService } from '@application/services/RegistrarEnvioAppService';
-import { ConsultarEnvioAppService } from '@application/services/ConsultarEnvioAppService';
-import { ActualizarEstadoAppService } from '@application/services/ActualizarEstadoAppService';
-import { ConsultarTarifasAppService } from '@application/services/ConsultarTarifasAppService';
+import { CotizarEnvioAppService } from '../../../src/application/services/CotizarEnvioAppService';
+import { RegistrarEnvioAppService } from '../../../src/application/services/RegistrarEnvioAppService';
+import { ConsultarEnvioAppService } from '../../../src/application/services/ConsultarEnvioAppService';
+import { ActualizarEstadoAppService } from '../../../src/application/services/ActualizarEstadoAppService';
+import { ConsultarTarifasAppService } from '../../../src/application/services/ConsultarTarifasAppService';
 
 describe('HealthRouter Coverage', () => {
     let db: any;
 
     beforeAll(async () => {
-        jest.spyOn(console, 'info').mockImplementation(() => {});
-        jest.spyOn(console, 'log').mockImplementation(() => {});
-        jest.spyOn(console, 'error').mockImplementation(() => {});
+        jest.spyOn(console, 'info').mockImplementation(() => { });
+        jest.spyOn(console, 'log').mockImplementation(() => { });
+        jest.spyOn(console, 'error').mockImplementation(() => { });
 
-
-        const mockCache = { 
-            get: jest.fn(), 
-            set: jest.fn(), 
-            isConnected: jest.fn().mockReturnValue(true)
+        const mockCache = {
+            get: jest.fn(),
+            set: jest.fn(),
+            isConnected: jest.fn().mockReturnValue(true),
+            disconnect: jest.fn()
         };
 
-
-        const mockDb = { 
+        const mockDb = {
             one: jest.fn().mockResolvedValue({ status: 'ok' }),
-            connect: jest.fn() 
+            connect: jest.fn(),
+            $disconnect: jest.fn()
         };
 
-
-        const mockRepo = { 
-            getTarifa: jest.fn(), 
-            save: jest.fn(), 
+        const mockRepo = {
+            getTarifa: jest.fn(),
+            save: jest.fn(),
             findByGuia: jest.fn(),
-            getNextGuiaNumber: jest.fn()
+            getNextGuiaNumber: jest.fn(),
+            getAllTarifas: jest.fn()
         };
-
 
         const infrastructure = [
             { type: TYPES.PostgresDatabase, value: mockDb },
@@ -46,11 +46,11 @@ describe('HealthRouter Coverage', () => {
         ];
 
         infrastructure.forEach(item => {
-            if (!DEPENDENCY_CONTAINER.isBound(item.type)) {
-                DEPENDENCY_CONTAINER.bind(item.type).toConstantValue(item.value);
+            if (DEPENDENCY_CONTAINER.isBound(item.type)) {
+                DEPENDENCY_CONTAINER.unbind(item.type);
             }
+            DEPENDENCY_CONTAINER.bind(item.type).toConstantValue(item.value);
         });
-
 
         const servicios = [
             { type: TYPES.CotizarEnvioAppService, class: CotizarEnvioAppService },
@@ -61,9 +61,10 @@ describe('HealthRouter Coverage', () => {
         ];
 
         servicios.forEach(s => {
-            if (!DEPENDENCY_CONTAINER.isBound(s.type)) {
-                DEPENDENCY_CONTAINER.bind(s.type).to(s.class);
+            if (DEPENDENCY_CONTAINER.isBound(s.type)) {
+                DEPENDENCY_CONTAINER.unbind(s.type);
             }
+            DEPENDENCY_CONTAINER.bind(s.type).to(s.class);
         });
 
         await application.ready();
@@ -72,9 +73,6 @@ describe('HealthRouter Coverage', () => {
 
     afterAll(async () => {
         await application.close();
-    });
-
-    afterEach(() => {
         jest.restoreAllMocks();
     });
 
@@ -83,9 +81,8 @@ describe('HealthRouter Coverage', () => {
 
         const response = await application.inject({
             method: 'GET',
-            url: '/coordinadora/gestion-envios/health/ready'
+            url: '/health/ready'
         });
-
 
         expect(response.statusCode).toBe(503);
         const body = JSON.parse(response.body);
@@ -95,10 +92,14 @@ describe('HealthRouter Coverage', () => {
     it('GET /metrics debería retornar métricas de sistema', async () => {
         const response = await application.inject({
             method: 'GET',
-            url: '/coordinadora/gestion-envios/metrics'
+            url: '/metrics'
         });
+
         expect(response.statusCode).toBe(200);
         const body = JSON.parse(response.body);
+
         expect(body).toHaveProperty('uptime');
+        expect(body).toHaveProperty('memory');
+        expect(body).toHaveProperty('cpu');
     });
 });

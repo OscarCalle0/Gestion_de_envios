@@ -1,5 +1,5 @@
-import { injectable } from 'inversify';
-import { TYPES, DEPENDENCY_CONTAINER } from '@configuration';
+import { injectable, inject } from 'inversify';
+import { TYPES } from '../../configuration/Types';
 import { TarifaRepository } from '@domain/repository/EnvioRepository';
 import { EnvioEntity, UnidadEnvio } from '@domain/entities/EnvioEntity';
 import { CacheService } from '@infrastructure/cache/RedisCache';
@@ -15,8 +15,10 @@ interface TarifaCache {
 
 @injectable()
 export class CotizarEnvioAppService {
-    private tarifaRepository = DEPENDENCY_CONTAINER.get<TarifaRepository>(TYPES.TarifaRepository);
-    private cacheService = DEPENDENCY_CONTAINER.get<CacheService>(TYPES.CacheService);
+    constructor(
+        @inject(TYPES.TarifaRepository) private readonly tarifaRepository: TarifaRepository,
+        @inject(TYPES.CacheService) private readonly cacheService: CacheService
+    ) { }
 
     private getTarifaCacheKey(origen: string, destino: string, tipoProducto: string): string {
         return `tarifa:${origen}:${destino}:${tipoProducto}`;
@@ -49,8 +51,8 @@ export class CotizarEnvioAppService {
 
         let valorTotalCotizacion = 0;
         const unidadesProcesadas = data.unidades.map((u) => {
-            const unidadCalculada = EnvioEntity.calcularUnidad(u, tarifa!.factorVolumetrico);
-            valorTotalCotizacion += (unidadCalculada.pesoFacturable || 0) * tarifa!.precioBase;
+            const unidadCalculada = EnvioEntity.calcularUnidad(u, tarifa.factorVolumetrico);
+            valorTotalCotizacion += (unidadCalculada.pesoFacturable || 0) * tarifa.precioBase;
             return unidadCalculada;
         });
 

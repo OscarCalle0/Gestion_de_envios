@@ -33,7 +33,6 @@ export class ConsultarEnvioAppService {
         let fromCache = false;
 
         if (cached) {
-            // CORRECCIÓN S4325: Se elimina el 'as EnvioEntity' innecesario
             envio = new EnvioEntity(cached.envio);
             historial = cached.historial;
             fromCache = true;

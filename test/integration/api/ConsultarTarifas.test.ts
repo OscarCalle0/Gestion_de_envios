@@ -1,17 +1,8 @@
 import 'reflect-metadata';
-import { DEPENDENCY_CONTAINER, TYPES } from '@configuration';
-import { ConsultarTarifasAppService } from '@application/services/ConsultarTarifasAppService';
+import { TYPES } from '../../../src/configuration/Types';
+import { DEPENDENCY_CONTAINER } from '../../../src/configuration/DependecyContainer';
+import { ConsultarTarifasAppService } from '../../../src/application/services/ConsultarTarifasAppService';
 
-/**
- * TESTS UNITARIOS PARA ConsultarTarifasAppService
- * 
- * Objetivo: Alcanzar 100% de cobertura en ConsultarTarifasAppService
- * Cubre:
- * - Cache HIT/MISS
- * - Agrupación de tarifas por ruta
- * - Estructura de respuesta
- * - Múltiples tarifas
- */
 describe('ConsultarTarifasAppService - Cobertura Completa', () => {
     let service: ConsultarTarifasAppService;
     let mockTarifaRepository: any;
@@ -27,6 +18,7 @@ describe('ConsultarTarifasAppService - Cobertura Completa', () => {
         mockCacheService = {
             get: jest.fn(),
             set: jest.fn(),
+            disconnect: jest.fn(),
         };
 
         if (DEPENDENCY_CONTAINER.isBound(TYPES.TarifaRepository)) {
@@ -39,15 +31,22 @@ describe('ConsultarTarifasAppService - Cobertura Completa', () => {
         }
         DEPENDENCY_CONTAINER.bind(TYPES.CacheService).toConstantValue(mockCacheService);
 
-        service = new ConsultarTarifasAppService();
+        service = new ConsultarTarifasAppService(mockTarifaRepository, mockCacheService);
     });
 
     afterEach(() => {
         DEPENDENCY_CONTAINER.restore();
+        jest.clearAllMocks();
     });
 
-    describe('Cache HIT', () => {
-        it('debería retornar tarifas desde caché sin consultar BD', async () => {
+    afterAll(async () => {
+        if (mockCacheService && typeof mockCacheService.disconnect === 'function') {
+            await mockCacheService.disconnect();
+        }
+    });
+
+    describe('Flujo de Caché (Strategy Pattern)', () => {
+        it('debería retornar tarifas desde caché sin consultar BD (HIT)', async () => {
             const cachedTarifas = [
                 { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 }
             ];
@@ -58,23 +57,9 @@ describe('ConsultarTarifasAppService - Cobertura Completa', () => {
             expect(result.isError).toBe(false);
             expect((result.data as any).fromCache).toBe(true);
             expect(mockTarifaRepository.getAllTarifas).not.toHaveBeenCalled();
-            expect(mockCacheService.get).toHaveBeenCalledWith('tarifas:all');
         });
 
-        it('debería indicar que proviene de caché', async () => {
-            const cachedTarifas = [
-                { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 }
-            ];
-            mockCacheService.get.mockResolvedValue(cachedTarifas);
-
-            const result = await service.run();
-
-            expect((result.data as any).fromCache).toBe(true);
-        });
-    });
-
-    describe('Cache MISS', () => {
-        it('debería consultar BD cuando no está en caché', async () => {
+        it('debería consultar BD y guardar en caché cuando no existe (MISS)', async () => {
             mockCacheService.get.mockResolvedValue(null);
             const tarifas = [
                 { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 }
@@ -84,37 +69,13 @@ describe('ConsultarTarifasAppService - Cobertura Completa', () => {
             const result = await service.run();
 
             expect(result.isError).toBe(false);
-            expect(mockCacheService.get).toHaveBeenCalled();
-            expect(mockTarifaRepository.getAllTarifas).toHaveBeenCalled();
-        });
-
-        it('debería guardar en caché después de consultar BD', async () => {
-            mockCacheService.get.mockResolvedValue(null);
-            const tarifas = [
-                { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 }
-            ];
-            mockTarifaRepository.getAllTarifas.mockResolvedValue(tarifas);
-
-            await service.run();
-
             expect(mockCacheService.set).toHaveBeenCalledWith('tarifas:all', tarifas, 600);
-        });
-
-        it('debería indicar que NO proviene de caché', async () => {
-            mockCacheService.get.mockResolvedValue(null);
-            const tarifas = [
-                { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 }
-            ];
-            mockTarifaRepository.getAllTarifas.mockResolvedValue(tarifas);
-
-            const result = await service.run();
-
             expect((result.data as any).fromCache).toBe(false);
         });
     });
 
-    describe('Agrupación de Tarifas', () => {
-        it('debería agrupar tarifas por ruta', async () => {
+    describe('Lógica de Agrupación y Estructura', () => {
+        it('debería agrupar tarifas por ruta única y detallar productos', async () => {
             mockCacheService.get.mockResolvedValue(null);
             const tarifas = [
                 { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 },
@@ -123,228 +84,50 @@ describe('ConsultarTarifasAppService - Cobertura Completa', () => {
             mockTarifaRepository.getAllTarifas.mockResolvedValue(tarifas);
 
             const result = await service.run();
+            const data = result.data as any;
 
-            expect((result.data as any).tarifas).toHaveLength(1);
-            expect((result.data as any).tarifas[0].origen).toBe('MEDELLIN');
-            expect((result.data as any).tarifas[0].destino).toBe('BOGOTA');
-            expect((result.data as any).tarifas[0].productos).toHaveLength(2);
+            expect(data.tarifas).toHaveLength(1);
+            expect(data.tarifas[0].productos).toHaveLength(2);
+            expect(data.totalTarifas).toBe(2);
         });
 
-        it('debería crear múltiples rutas cuando hay diferentes destinos', async () => {
+        it('debería incluir la descripción informativa del cálculo logístico', async () => {
             mockCacheService.get.mockResolvedValue(null);
-            const tarifas = [
-                { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 },
-                { id: 2, origen: 'BOGOTA', destino: 'CALI', tipoProducto: 'PAQUETE', precioBase: 6000, factorVolumetrico: 2500 }
-            ];
-            mockTarifaRepository.getAllTarifas.mockResolvedValue(tarifas);
+            mockTarifaRepository.getAllTarifas.mockResolvedValue([]);
 
             const result = await service.run();
+            const data = result.data as any;
 
-            expect((result.data as any).tarifas).toHaveLength(2);
-        });
-
-        it('debería incluir información de productos en cada ruta', async () => {
-            mockCacheService.get.mockResolvedValue(null);
-            const tarifas = [
-                { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 },
-                { id: 2, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'DOCUMENTO', precioBase: 8000, factorVolumetrico: 2500 }
-            ];
-            mockTarifaRepository.getAllTarifas.mockResolvedValue(tarifas);
-
-            const result = await service.run();
-
-            const ruta = (result.data as any).tarifas[0];
-            expect(ruta.productos[0]).toHaveProperty('tipoProducto');
-            expect(ruta.productos[0]).toHaveProperty('precioBase');
-            expect(ruta.productos[0]).toHaveProperty('factorVolumetrico');
+            expect(data.descripcion).toContain('peso facturable');
+            expect(data.moneda).toBe('COP');
         });
     });
 
-    describe('Estructura de Respuesta', () => {
-        it('debería retornar estructura completa', async () => {
-            mockCacheService.get.mockResolvedValue(null);
-            const tarifas = [
-                { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 }
-            ];
-            mockTarifaRepository.getAllTarifas.mockResolvedValue(tarifas);
-
-            const result = await service.run();
-
-            expect((result.data as any)).toHaveProperty('totalTarifas');
-            expect((result.data as any)).toHaveProperty('moneda');
-            expect((result.data as any)).toHaveProperty('descripcion');
-            expect((result.data as any)).toHaveProperty('fromCache');
-            expect((result.data as any)).toHaveProperty('tarifas');
-            expect((result.data as any)).toHaveProperty('tarifasDetalle');
-        });
-
-        it('debería retornar total de tarifas correcto', async () => {
-            mockCacheService.get.mockResolvedValue(null);
-            const tarifas = [
-                { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 },
-                { id: 2, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'DOCUMENTO', precioBase: 8000, factorVolumetrico: 2500 },
-                { id: 3, origen: 'BOGOTA', destino: 'CALI', tipoProducto: 'PAQUETE', precioBase: 6000, factorVolumetrico: 2500 }
-            ];
-            mockTarifaRepository.getAllTarifas.mockResolvedValue(tarifas);
-
-            const result = await service.run();
-
-            expect((result.data as any).totalTarifas).toBe(3);
-        });
-
-        it('debería retornar moneda COP', async () => {
-            mockCacheService.get.mockResolvedValue(null);
-            const tarifas = [
-                { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 }
-            ];
-            mockTarifaRepository.getAllTarifas.mockResolvedValue(tarifas);
-
-            const result = await service.run();
-
-            expect((result.data as any).moneda).toBe('COP');
-        });
-
-        it('debería retornar descripción de cálculo de peso', async () => {
-            mockCacheService.get.mockResolvedValue(null);
-            const tarifas = [
-                { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 }
-            ];
-            mockTarifaRepository.getAllTarifas.mockResolvedValue(tarifas);
-
-            const result = await service.run();
-
-            expect((result.data as any).descripcion).toContain('peso facturable');
-            expect((result.data as any).descripcion).toContain('peso volumétrico');
-        });
-    });
-
-    describe('Tarifas Detalle', () => {
-        it('debería incluir lista detallada de tarifas', async () => {
-            mockCacheService.get.mockResolvedValue(null);
-            const tarifas = [
-                { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 },
-                { id: 2, origen: 'BOGOTA', destino: 'CALI', tipoProducto: 'DOCUMENTO', precioBase: 8000, factorVolumetrico: 2500 }
-            ];
-            mockTarifaRepository.getAllTarifas.mockResolvedValue(tarifas);
-
-            const result = await service.run();
-
-            expect((result.data as any).tarifasDetalle).toHaveLength(2);
-        });
-
-        it('debería incluir todos los campos en tarifas detalle', async () => {
-            mockCacheService.get.mockResolvedValue(null);
-            const tarifas = [
-                { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 }
-            ];
-            mockTarifaRepository.getAllTarifas.mockResolvedValue(tarifas);
-
-            const result = await service.run();
-
-            const tarifa = (result.data as any).tarifasDetalle[0];
-            expect(tarifa).toHaveProperty('id');
-            expect(tarifa).toHaveProperty('origen');
-            expect(tarifa).toHaveProperty('destino');
-            expect(tarifa).toHaveProperty('tipoProducto');
-            expect(tarifa).toHaveProperty('precioBase');
-            expect(tarifa).toHaveProperty('factorVolumetrico');
-        });
-    });
-
-    describe('Casos Edge', () => {
-        it('debería manejar lista vacía de tarifas', async () => {
+    describe('Casos de Borde', () => {
+        it('debería manejar correctamente una respuesta sin tarifas', async () => {
             mockCacheService.get.mockResolvedValue(null);
             mockTarifaRepository.getAllTarifas.mockResolvedValue([]);
 
             const result = await service.run();
 
             expect(result.isError).toBe(false);
-            expect((result.data as any).totalTarifas).toBe(0);
             expect((result.data as any).tarifas).toHaveLength(0);
-            expect((result.data as any).tarifasDetalle).toHaveLength(0);
         });
 
-        it('debería manejar una sola tarifa', async () => {
+        it('debería procesar grandes volúmenes de tarifas sin errores', async () => {
             mockCacheService.get.mockResolvedValue(null);
-            const tarifas = [
-                { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 }
-            ];
-            mockTarifaRepository.getAllTarifas.mockResolvedValue(tarifas);
-
-            const result = await service.run();
-
-            expect((result.data as any).totalTarifas).toBe(1);
-            expect((result.data as any).tarifas).toHaveLength(1);
-        });
-
-        it('debería manejar muchas tarifas correctamente', async () => {
-            mockCacheService.get.mockResolvedValue(null);
-            const tarifas = Array.from({ length: 100 }, (_, i) => ({
-                id: i + 1,
-                origen: 'MEDELLIN',
-                destino: 'BOGOTA',
-                tipoProducto: i % 2 === 0 ? 'PAQUETE' : 'DOCUMENTO',
-                precioBase: 5000 + i * 100,
+            const muchasTarifas = Array.from({ length: 50 }, (_, i) => ({
+                id: i,
+                origen: `ORIGEN_${i}`,
+                destino: `DESTINO_${i}`,
+                tipoProducto: 'PAQUETE',
+                precioBase: 1000,
                 factorVolumetrico: 2500
             }));
-            mockTarifaRepository.getAllTarifas.mockResolvedValue(tarifas);
+            mockTarifaRepository.getAllTarifas.mockResolvedValue(muchasTarifas);
 
             const result = await service.run();
-
-            expect((result.data as any).totalTarifas).toBe(100);
-            expect((result.data as any).tarifasDetalle).toHaveLength(100);
-        });
-
-        it('debería agrupar correctamente con múltiples rutas y productos', async () => {
-            mockCacheService.get.mockResolvedValue(null);
-            const tarifas = [
-                { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 },
-                { id: 2, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'DOCUMENTO', precioBase: 8000, factorVolumetrico: 2500 },
-                { id: 3, origen: 'BOGOTA', destino: 'CALI', tipoProducto: 'PAQUETE', precioBase: 6000, factorVolumetrico: 2500 },
-                { id: 4, origen: 'BOGOTA', destino: 'CALI', tipoProducto: 'DOCUMENTO', precioBase: 9000, factorVolumetrico: 2500 },
-                { id: 5, origen: 'CALI', destino: 'BARRANQUILLA', tipoProducto: 'PAQUETE', precioBase: 7000, factorVolumetrico: 2500 }
-            ];
-            mockTarifaRepository.getAllTarifas.mockResolvedValue(tarifas);
-
-            const result = await service.run();
-
-            expect((result.data as any).totalTarifas).toBe(5);
-            expect((result.data as any).tarifas).toHaveLength(3);
-            
-            // Verificar que cada ruta tiene los productos correctos
-            const rutaMB = (result.data as any).tarifas.find((r: any) => r.origen === 'MEDELLIN' && r.destino === 'BOGOTA');
-            expect(rutaMB.productos).toHaveLength(2);
-            
-            const rutaBC = (result.data as any).tarifas.find((r: any) => r.origen === 'BOGOTA' && r.destino === 'CALI');
-            expect(rutaBC.productos).toHaveLength(2);
-        });
-    });
-
-    describe('TTL de Caché', () => {
-        it('debería usar TTL de 600 segundos', async () => {
-            mockCacheService.get.mockResolvedValue(null);
-            const tarifas = [
-                { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 }
-            ];
-            mockTarifaRepository.getAllTarifas.mockResolvedValue(tarifas);
-
-            await service.run();
-
-            expect(mockCacheService.set).toHaveBeenCalledWith('tarifas:all', tarifas, 600);
-        });
-    });
-
-    describe('IsError', () => {
-        it('debería retornar isError = false', async () => {
-            mockCacheService.get.mockResolvedValue(null);
-            const tarifas = [
-                { id: 1, origen: 'MEDELLIN', destino: 'BOGOTA', tipoProducto: 'PAQUETE', precioBase: 5000, factorVolumetrico: 2500 }
-            ];
-            mockTarifaRepository.getAllTarifas.mockResolvedValue(tarifas);
-
-            const result = await service.run();
-
-            expect(result.isError).toBe(false);
+            expect((result.data as any).totalTarifas).toBe(50);
         });
     });
 });

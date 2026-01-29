@@ -1,6 +1,5 @@
 import { RedisCacheService } from '../../../src/infrastructure/cache/RedisCache';
 
-// 1. Definimos la instancia del mock fuera de todo
 const redisMockInstance = {
     on: jest.fn().mockImplementation(function(this: any, event, cb) {
         if (event === 'connect') cb();
@@ -14,7 +13,6 @@ const redisMockInstance = {
     status: 'ready'
 };
 
-// 2. FORZAMOS el mock de ioredis antes de que se use
 jest.mock('ioredis', () => {
     return jest.fn().mockImplementation(() => redisMockInstance);
 });
@@ -25,11 +23,9 @@ describe('RedisCacheService', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         
-        // Spies para que no ensucien la consola y cuenten cobertura
         jest.spyOn(console, 'log').mockImplementation(() => {});
         jest.spyOn(console, 'warn').mockImplementation(() => {});
 
-        // RE-INYECCIÓN MANUAL: Nos aseguramos de que el servicio use el mock
         service = new RedisCacheService();
         (service as any).client = redisMockInstance;
         (service as any).connected = true; 
@@ -92,7 +88,6 @@ describe('RedisCacheService', () => {
     });
 
     it('debería cubrir el catch del constructor', () => {
-        // Este test es específico para la línea 60 del archivo original
         const ioredis = require('ioredis');
         ioredis.mockImplementationOnce(() => { throw new Error('Fail'); });
         

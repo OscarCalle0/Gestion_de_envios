@@ -38,9 +38,9 @@ Este microservicio implementa la gestión completa de envíos y rutas logística
         },
         servers: [
             {
-                url: `http://localhost:${ENV.PORT}${ENV.PREFIX}`,
-                description: 'Servidor de Desarrollo Local',
-            },
+                url: `http://127.0.0.1:${ENV.PORT}`,
+                description: 'Servidor Local',
+            }
         ],
         tags: [
             { name: 'Cotización', description: 'Endpoints para cotizar envíos' },

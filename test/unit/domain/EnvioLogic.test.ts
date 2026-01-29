@@ -1,6 +1,5 @@
 import { EnvioEntity, ESTADOS_VALIDOS, TRANSICIONES_ESTADO } from "../../../src/domain/entities/EnvioEntity";
 
-
 describe('EnvioEntity Logic', () => {
     describe('Cálculo de Unidades', () => {
         it('debe redondear las dimensiones al entero superior', () => {

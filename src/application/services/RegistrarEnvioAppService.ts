@@ -1,5 +1,5 @@
-import { injectable } from 'inversify';
-import { TYPES, DEPENDENCY_CONTAINER } from '@configuration';
+import { injectable, inject } from 'inversify';
+import { TYPES } from '../../configuration/Types';
 import { EnvioRepository, TarifaRepository } from '@domain/repository/EnvioRepository';
 import { EnvioEntity, UnidadEnvio } from '@domain/entities/EnvioEntity';
 import { Result, Response } from '@domain/response';
@@ -19,8 +19,10 @@ interface RegistrarEnvioInput {
 
 @injectable()
 export class RegistrarEnvioAppService {
-    private envioRepository = DEPENDENCY_CONTAINER.get<EnvioRepository>(TYPES.EnvioRepository);
-    private tarifaRepository = DEPENDENCY_CONTAINER.get<TarifaRepository>(TYPES.TarifaRepository);
+    constructor(
+        @inject(TYPES.EnvioRepository) private readonly envioRepository: EnvioRepository,
+        @inject(TYPES.TarifaRepository) private readonly tarifaRepository: TarifaRepository
+    ) { }
 
     async run(data: RegistrarEnvioInput): Promise<Response<any>> {
         const tarifa = await this.tarifaRepository.getTarifa(

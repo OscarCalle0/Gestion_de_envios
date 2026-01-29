@@ -5,7 +5,6 @@ import { EnvioEntity, UnidadEnvio, EstadoEnvio } from '@domain/entities/EnvioEnt
 
 @injectable()
 export class PostgresEnvioRepository implements EnvioRepository, TarifaRepository {
-    // CORRECCIÓN S2933: Añadido readonly
     private readonly db = DEPENDENCY_CONTAINER.get<any>(TYPES.PostgresDatabase);
 
     async save(envio: EnvioEntity): Promise<void> {
@@ -82,11 +81,9 @@ export class PostgresEnvioRepository implements EnvioRepository, TarifaRepositor
             tipoProducto: envioData.tipoProducto,
             origen: envioData.origen,
             destino: envioData.destino,
-            // CORRECCIÓN S7773: Number.parseFloat
             valorDeclarado: Number.parseFloat(envioData.valorDeclarado),
             metodoPago: envioData.metodoPago,
             unidades: unidades as UnidadEnvio[],
-            // CORRECCIÓN S7773: Number.parseFloat
             valorTotalCotizacion: Number.parseFloat(envioData.valorTotalCotizacion),
             remitente: {
                 nombre: envioData.remitente_nombre,
@@ -106,7 +103,6 @@ export class PostgresEnvioRepository implements EnvioRepository, TarifaRepositor
         });
     }
 
-    // ... (El resto de métodos quedan igual pero se benefician del readonly de 'db')
     async updateEstado(
         numeroGuia: string,
         nuevoEstado: EstadoEnvio,
@@ -167,12 +163,19 @@ export class PostgresEnvioRepository implements EnvioRepository, TarifaRepositor
         destino: string,
         tipoProducto: string,
     ): Promise<{ precioBase: number; factorVolumetrico: number } | null> {
-        return this.db.oneOrNone(
+        const res = await this.db.oneOrNone(
             `SELECT precio_base as "precioBase", factor_volumetrico as "factorVolumetrico" 
              FROM tarifas 
              WHERE origen = $1 AND destino = $2 AND (tipo_producto = $3 OR tipo_producto = 'AMBOS') AND activo = TRUE`,
             [origen, destino, tipoProducto],
         );
+
+        if (!res) return null;
+
+        return {
+            precioBase: Number(res.precioBase),
+            factorVolumetrico: Number(res.factorVolumetrico)
+        };
     }
 
     async getAllTarifas(): Promise<Tarifa[]> {
@@ -181,6 +184,11 @@ export class PostgresEnvioRepository implements EnvioRepository, TarifaRepositor
                     precio_base as "precioBase", factor_volumetrico as "factorVolumetrico", activo
              FROM tarifas WHERE activo = TRUE ORDER BY origen, destino`,
         );
-        return tarifas || [];
+
+        return (tarifas || []).map((t: any) => ({
+            ...t,
+            precioBase: Number(t.precioBase),
+            factorVolumetrico: Number(t.factorVolumetrico)
+        }));
     }
 }

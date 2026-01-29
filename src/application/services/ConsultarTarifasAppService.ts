@@ -1,5 +1,5 @@
-import { injectable } from 'inversify';
-import { TYPES, DEPENDENCY_CONTAINER } from '@configuration';
+import { injectable, inject } from 'inversify';
+import { TYPES } from '../../configuration/Types';
 import { TarifaRepository, Tarifa } from '@domain/repository/EnvioRepository';
 import { CacheService } from '@infrastructure/cache/RedisCache';
 import { Result, Response } from '@domain/response';
@@ -9,8 +9,10 @@ const CACHE_TTL_TARIFAS = 600;
 
 @injectable()
 export class ConsultarTarifasAppService {
-    private tarifaRepository = DEPENDENCY_CONTAINER.get<TarifaRepository>(TYPES.TarifaRepository);
-    private cacheService = DEPENDENCY_CONTAINER.get<CacheService>(TYPES.CacheService);
+    constructor(
+        @inject(TYPES.TarifaRepository) private readonly tarifaRepository: TarifaRepository,
+        @inject(TYPES.CacheService) private readonly cacheService: CacheService
+    ) { }
 
     async run(): Promise<Response<unknown>> {
         const cachedTarifas = await this.cacheService.get<Tarifa[]>(CACHE_KEY_TARIFAS);

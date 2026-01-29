@@ -10,7 +10,7 @@ export class Result {
     static ok<T>(data?: T): Response<T | null> {
         return {
             isError: false,
-            data: data || null,
+            data: data ?? null,
             timestamp: new Date(),
         };
     }
