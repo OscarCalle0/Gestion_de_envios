@@ -137,7 +137,7 @@ yarn coverage      # Generar reporte de cobertura detallado
 
 ---
 
-## Características Pro
+## Características Adicionales
 
 * **Health Checks:** Endpoints `/health`, `/health/ready` (Readiness Probe) y `/metrics` activos.
 * **Logging Profesional:** Formato JSON para producción y legible para desarrollo mediante `Pino`.
@@ -145,5 +145,5 @@ yarn coverage      # Generar reporte de cobertura detallado
 
 ---
 
-**Autor:** Oscar Calle - Desarrollado para Coordinadora Mercantil S.A.
+**Autor:** Oscar Calle 
 **Licencia:** Propiedad de Coordinadora Mercantil S.A.
