@@ -48,7 +48,7 @@ cd Gestion_de_envios
 yarn install
 ```
 
-### 2. Configurar variables de entorno (.env)
+### 2. Configurar variables de entorno (.env y .env.test)
 
 Crea un archivo `.env` en la raíz con la siguiente configuración:
 
@@ -71,6 +71,31 @@ REDIS_TTL=600
 
 LOG_LEVEL=info
 GCP_PROJECT=local-project
+```
+
+Crea un archivo `.env.test` en la raíz con la siguiente configuración:
+
+```env.test
+NODE_ENV=test
+DOMAIN=coordinadora
+SERVICE_NAME=gestion-envios
+PORT=3000
+HOST=localhost
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=coordinadora_user
+DB_PASSWORD=coordinadora_pass
+DB_NAME=coordinadora_db
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_TTL=3600
+
+GCP_PROJECT=local-project
+
+API_PREFIX=
 ```
 
 ### 3. Iniciar servicios y servidor
