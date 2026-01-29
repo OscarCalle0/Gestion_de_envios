@@ -43,8 +43,8 @@ src/
 ### 1. Clonar y preparar
 
 ```bash
-git clone https://github.com/OscarCalle0/Gestion-de-envios.git
-cd Gestion-de-envios
+git clone https://github.com/OscarCalle0/Gestion_de_envios.git
+cd Gestion_de_envios
 yarn install
 ```
 
